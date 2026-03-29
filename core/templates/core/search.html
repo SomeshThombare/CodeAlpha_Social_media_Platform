@@ -1,0 +1,103 @@
+<!--
+  core/templates/core/search.html
+  Search Users Page
+-->
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Search — SocialApp{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'core/search.css' %}" />
+{% endblock %}
+
+{% block content %}
+<div class="search-layout">
+
+  <h2 class="page-title">🔍 Find People</h2>
+
+  <!-- Search Form -->
+  <form method="get" action="{% url 'search' %}" class="search-form">
+    <div class="search-input-wrap">
+      <input type="text"
+             name="q"
+             value="{{ query }}"
+             placeholder="Search by username or name..."
+             class="search-input"
+             autofocus />
+      <button type="submit" class="btn btn-primary">Search</button>
+    </div>
+  </form>
+
+  <!-- Results -->
+  {% if query %}
+    <div class="results-header">
+      {% if results %}
+        <p class="results-count">Found {{ results|length }} result{{ results|length|pluralize }} for "<strong>{{ query }}</strong>"</p>
+      {% else %}
+        <p class="results-count no-results">No users found for "<strong>{{ query }}</strong>"</p>
+      {% endif %}
+    </div>
+
+    <div class="results-list">
+      {% for result_user in results %}
+      <div class="user-card">
+        <a href="{% url 'profile' username=result_user.username %}" class="user-card-link">
+          {% if result_user.profile.avatar %}
+            <img src="{{ result_user.profile.avatar.url }}" class="user-avatar-md" alt="avatar" />
+          {% else %}
+            <div class="avatar-placeholder-md">{{ result_user.username|first|upper }}</div>
+          {% endif %}
+          <div class="user-card-info">
+            <div class="user-card-name">{{ result_user.get_full_name|default:result_user.username }}</div>
+            <div class="user-card-username">@{{ result_user.username }}</div>
+            {% if result_user.profile.bio %}
+              <div class="user-card-bio">{{ result_user.profile.bio|truncatechars:80 }}</div>
+            {% endif %}
+          </div>
+        </a>
+
+        <!-- Follow/Unfollow button -->
+        <button class="btn follow-toggle-btn {% if result_user.id in following_ids %}btn-outline{% else %}btn-primary{% endif %} btn-sm"
+                data-username="{{ result_user.username }}"
+                data-url="{% url 'follow' username=result_user.username %}"
+                data-following="{{ result_user.id in following_ids|yesno:'true,false' }}">
+          {% if result_user.id in following_ids %}✓ Following{% else %}+ Follow{% endif %}
+        </button>
+      </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Follow toggle on search results
+document.querySelectorAll('.follow-toggle-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const url = this.dataset.url;
+
+    fetch(url, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.following) {
+        this.textContent = '✓ Following';
+        this.classList.remove('btn-primary');
+        this.classList.add('btn-outline');
+        this.dataset.following = 'true';
+      } else {
+        this.textContent = '+ Follow';
+        this.classList.remove('btn-outline');
+        this.classList.add('btn-primary');
+        this.dataset.following = 'false';
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<!--
+  core/templates/core/base.html
+  Base template — all other templates extend this.
+-->
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}SocialApp{% endblock %}</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Base CSS (inline — shared across all pages) -->
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f1117;
+      --surface:  #1a1d27;
+      --card:     #22263a;
+      --border:   #2e3248;
+      --accent:   #6c63ff;
+      --accent2:  #ff6584;
+      --text:     #e8eaf6;
+      --muted:    #8b90a7;
+      --success:  #4caf82;
+      --danger:   #ff5a5a;
+      --radius:   14px;
+      --shadow:   0 4px 24px rgba(0,0,0,0.35);
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: #9c93ff; }
+
+    /* ── Navbar ── */
+    .navbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .navbar-brand {
+      font-family: 'Sora', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+    }
+
+    .navbar-links {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-link {
+      color: var(--muted);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .nav-link:hover, .nav-link.active {
+      background: var(--card);
+      color: var(--text);
+    }
+
+    .nav-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--accent);
+    }
+
+    .nav-avatar-placeholder {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: #fff;
+    }
+
+    .btn-logout {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 6px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.2s;
+    }
+    .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
+
+    /* ── Layout ── */
+    .page-wrapper {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 32px 16px;
+    }
+
+    /* ── Messages (Django messages) ── */
+    .messages-container { margin-bottom: 20px; }
+    .message-alert {
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    .message-success { background: rgba(76,175,130,0.15); color: var(--success); border: 1px solid rgba(76,175,130,0.3); }
+    .message-error   { background: rgba(255,90,90,0.15);  color: var(--danger);  border: 1px solid rgba(255,90,90,0.3); }
+    .message-info    { background: rgba(108,99,255,0.15); color: var(--accent);  border: 1px solid rgba(108,99,255,0.3); }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    .btn-primary  { background: var(--accent);  color: #fff; }
+    .btn-primary:hover  { background: #7c73ff; transform: translateY(-1px); }
+    .btn-outline  { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover  { border-color: var(--accent); color: var(--accent); }
+    .btn-danger   { background: var(--danger); color: #fff; }
+    .btn-danger:hover   { background: #ff3a3a; }
+    .btn-sm { padding: 6px 14px; font-size: 0.82rem; }
+  </style>
+
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+  <!-- ── Navbar (only shown when logged in) ── -->
+  {% if user.is_authenticated %}
+  <nav class="navbar">
+    <a href="{% url 'feed' %}" class="navbar-brand">✦ SocialApp</a>
+
+    <div class="navbar-links">
+      <a href="{% url 'feed' %}"   class="nav-link">🏠 Feed</a>
+      <a href="{% url 'search' %}" class="nav-link">🔍 Search</a>
+      <a href="{% url 'profile' username=user.username %}" class="nav-link">
+        {% if user.profile.avatar %}
+          <img src="{{ user.profile.avatar.url }}" class="nav-avatar" alt="avatar" />
+        {% else %}
+          <span class="nav-avatar-placeholder">{{ user.username|first|upper }}</span>
+        {% endif %}
+      </a>
+      <form method="post" action="{% url 'logout' %}" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" class="btn-logout">Logout</button>
+      </form>
+    </div>
+  </nav>
+  {% endif %}
+
+  <!-- ── Main Content ── -->
+  <div class="page-wrapper">
+
+    <!-- Django Messages -->
+    {% if messages %}
+    <div class="messages-container">
+      {% for message in messages %}
+        <div class="message-alert message-{{ message.tags }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+
+  </div>
+
+  <!-- ── JS (shared) ── -->
+  <script src="{% static 'core/main.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

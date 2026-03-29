@@ -1,0 +1,143 @@
+<!--
+  core/templates/core/post_detail.html
+  Single Post Detail + Comments
+-->
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Post by {{ post.author.username }} — SocialApp{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'core/post_detail.css' %}" />
+{% endblock %}
+
+{% block content %}
+<div class="detail-layout">
+
+  <!-- Back link -->
+  <a href="javascript:history.back()" class="back-link">← Back</a>
+
+  <!-- ── Post Card ── -->
+  <article class="post-card detail-post">
+    <div class="post-header">
+      <a href="{% url 'profile' username=post.author.username %}" class="post-author-link">
+        {% if post.author.profile.avatar %}
+          <img src="{{ post.author.profile.avatar.url }}" class="user-avatar-sm" alt="avatar" />
+        {% else %}
+          <div class="avatar-placeholder">{{ post.author.username|first|upper }}</div>
+        {% endif %}
+        <div>
+          <div class="author-name">{{ post.author.get_full_name|default:post.author.username }}</div>
+          <div class="post-time">@{{ post.author.username }} · {{ post.created_at|date:"M d, Y · H:i" }}</div>
+        </div>
+      </a>
+
+      {% if post.author == user %}
+      <form method="post" action="{% url 'delete_post' post_id=post.id %}"
+            onsubmit="return confirm('Delete this post?')">
+        {% csrf_token %}
+        <button type="submit" class="btn-icon-danger">🗑 Delete</button>
+      </form>
+      {% endif %}
+    </div>
+
+    <div class="post-content detail-content">{{ post.content }}</div>
+
+    {% if post.image %}
+      <img src="{{ post.image.url }}" class="post-image" alt="post image" />
+    {% endif %}
+
+    <!-- Like Action -->
+    <div class="post-actions">
+      <button id="like-btn"
+              class="action-btn like-btn {% if is_liked %}liked{% endif %}"
+              data-url="{% url 'like_post' post_id=post.id %}">
+        <span class="like-icon">{% if is_liked %}❤️{% else %}🤍{% endif %}</span>
+        <span id="like-count">{{ post.get_likes_count }}</span> Likes
+      </button>
+      <span class="action-btn">💬 {{ comments.count }} Comments</span>
+    </div>
+  </article>
+
+  <!-- ── Comments Section ── -->
+  <div class="comments-section">
+    <h3 class="section-title">Comments</h3>
+
+    <!-- Add Comment Form -->
+    <form method="post" action="{% url 'post_detail' post_id=post.id %}" class="comment-form">
+      {% csrf_token %}
+      <div class="comment-input-row">
+        {% if user.profile.avatar %}
+          <img src="{{ user.profile.avatar.url }}" class="user-avatar-sm" alt="avatar" />
+        {% else %}
+          <div class="avatar-placeholder">{{ user.username|first|upper }}</div>
+        {% endif %}
+        {{ form.content }}
+        <button type="submit" class="btn btn-primary btn-sm">Post</button>
+      </div>
+      {% if form.content.errors %}
+        <span class="field-error">{{ form.content.errors.0 }}</span>
+      {% endif %}
+    </form>
+
+    <!-- Comments List -->
+    {% if comments %}
+      {% for comment in comments %}
+      <div class="comment-item">
+        <a href="{% url 'profile' username=comment.author.username %}">
+          {% if comment.author.profile.avatar %}
+            <img src="{{ comment.author.profile.avatar.url }}" class="user-avatar-sm" alt="avatar" />
+          {% else %}
+            <div class="avatar-placeholder">{{ comment.author.username|first|upper }}</div>
+          {% endif %}
+        </a>
+        <div class="comment-body">
+          <div class="comment-header">
+            <a href="{% url 'profile' username=comment.author.username %}" class="comment-author">
+              {{ comment.author.get_full_name|default:comment.author.username }}
+            </a>
+            <span class="comment-time">{{ comment.created_at|timesince }} ago</span>
+          </div>
+          <p class="comment-text">{{ comment.content }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-comments">
+        <p>No comments yet. Be the first to comment!</p>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Like AJAX on detail page
+const likeBtn = document.getElementById('like-btn');
+if (likeBtn) {
+  likeBtn.addEventListener('click', function() {
+    const url   = this.dataset.url;
+    const icon  = this.querySelector('.like-icon');
+    const count = document.getElementById('like-count');
+
+    fetch(url, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    })
+    .then(res => res.json())
+    .then(data => {
+      count.textContent = data.likes_count;
+      if (data.liked) {
+        this.classList.add('liked');
+        icon.textContent = '❤️';
+      } else {
+        this.classList.remove('liked');
+        icon.textContent = '🤍';
+      }
+    });
+  });
+}
+</script>
+{% endblock %}

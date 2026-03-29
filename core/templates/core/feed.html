@@ -1,0 +1,134 @@
+<!--
+  core/templates/core/feed.html
+  Home Feed Page
+-->
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Feed — SocialApp{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'core/feed.css' %}" />
+{% endblock %}
+
+{% block content %}
+<div class="feed-layout">
+
+  <!-- ── Create Post Card ── -->
+  <div class="create-post-card">
+    <div class="create-post-header">
+      {% if user.profile.avatar %}
+        <img src="{{ user.profile.avatar.url }}" class="user-avatar-sm" alt="avatar" />
+      {% else %}
+        <div class="avatar-placeholder">{{ user.username|first|upper }}</div>
+      {% endif %}
+      <span class="create-label">Share something, {{ user.first_name|default:user.username }}...</span>
+    </div>
+
+    <form method="post" action="{% url 'feed' %}" enctype="multipart/form-data" class="post-form">
+      {% csrf_token %}
+      {{ form.content }}
+      <div class="post-form-footer">
+        <label class="file-label">
+          📷 Add Photo
+          {{ form.image }}
+        </label>
+        <button type="submit" class="btn btn-primary btn-sm">Post</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ── Posts Feed ── -->
+  {% if posts %}
+    {% for post in posts %}
+    <article class="post-card">
+
+      <!-- Post Header -->
+      <div class="post-header">
+        <a href="{% url 'profile' username=post.author.username %}" class="post-author-link">
+          {% if post.author.profile.avatar %}
+            <img src="{{ post.author.profile.avatar.url }}" class="user-avatar-sm" alt="avatar" />
+          {% else %}
+            <div class="avatar-placeholder">{{ post.author.username|first|upper }}</div>
+          {% endif %}
+          <div>
+            <div class="author-name">{{ post.author.get_full_name|default:post.author.username }}</div>
+            <div class="post-time">@{{ post.author.username }} · {{ post.created_at|timesince }} ago</div>
+          </div>
+        </a>
+
+        {% if post.author == user %}
+        <form method="post" action="{% url 'delete_post' post_id=post.id %}" class="delete-form"
+              onsubmit="return confirm('Delete this post?')">
+          {% csrf_token %}
+          <button type="submit" class="btn-icon-danger">🗑</button>
+        </form>
+        {% endif %}
+      </div>
+
+      <!-- Post Content -->
+      <div class="post-content">{{ post.content }}</div>
+
+      {% if post.image %}
+        <img src="{{ post.image.url }}" class="post-image" alt="post image" />
+      {% endif %}
+
+      <!-- Post Actions -->
+      <div class="post-actions">
+        <!-- Like button -->
+        <button class="action-btn like-btn {% if post.id in liked_post_ids %}liked{% endif %}"
+                data-post-id="{{ post.id }}"
+                data-url="{% url 'like_post' post_id=post.id %}">
+          <span class="like-icon">{% if post.id in liked_post_ids %}❤️{% else %}🤍{% endif %}</span>
+          <span class="like-count">{{ post.get_likes_count }}</span>
+        </button>
+
+        <!-- Comment button -->
+        <a href="{% url 'post_detail' post_id=post.id %}" class="action-btn">
+          💬 <span>{{ post.get_comments_count }}</span>
+        </a>
+      </div>
+
+    </article>
+    {% endfor %}
+
+  {% else %}
+    <div class="empty-feed">
+      <div class="empty-icon">🌱</div>
+      <h3>Your feed is empty</h3>
+      <p>Follow some people or create your first post!</p>
+      <a href="{% url 'search' %}" class="btn btn-primary" style="margin-top:16px;">Find People</a>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Like button AJAX
+document.querySelectorAll('.like-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const url = this.dataset.url;
+    const icon = this.querySelector('.like-icon');
+    const count = this.querySelector('.like-count');
+
+    fetch(url, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    })
+    .then(res => res.json())
+    .then(data => {
+      count.textContent = data.likes_count;
+      if (data.liked) {
+        this.classList.add('liked');
+        icon.textContent = '❤️';
+      } else {
+        this.classList.remove('liked');
+        icon.textContent = '🤍';
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

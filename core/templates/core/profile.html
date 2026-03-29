@@ -1,0 +1,191 @@
+<!--
+  core/templates/core/profile.html
+  User Profile Page
+-->
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}{{ profile_user.username }} — SocialApp{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'core/profile.css' %}" />
+{% endblock %}
+
+{% block content %}
+<div class="profile-layout">
+
+  <!-- ── Profile Header Card ── -->
+  <div class="profile-header-card">
+    <div class="profile-banner"></div>
+
+    <div class="profile-info">
+      <!-- Avatar -->
+      <div class="profile-avatar-wrap">
+        {% if profile.avatar %}
+          <img src="{{ profile.avatar.url }}" class="profile-avatar" alt="avatar" />
+        {% else %}
+          <div class="profile-avatar-placeholder">{{ profile_user.username|first|upper }}</div>
+        {% endif %}
+      </div>
+
+      <!-- Name & Bio -->
+      <div class="profile-meta">
+        <h2 class="profile-name">{{ profile_user.get_full_name|default:profile_user.username }}</h2>
+        <p class="profile-username">@{{ profile_user.username }}</p>
+        {% if profile.bio %}
+          <p class="profile-bio">{{ profile.bio }}</p>
+        {% endif %}
+      </div>
+
+      <!-- Stats -->
+      <div class="profile-stats">
+        <div class="stat-item">
+          <span class="stat-number">{{ posts_count }}</span>
+          <span class="stat-label">Posts</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number" id="followers-count">{{ followers_count }}</span>
+          <span class="stat-label">Followers</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">{{ following_count }}</span>
+          <span class="stat-label">Following</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="profile-actions">
+        {% if is_own_profile %}
+          <a href="{% url 'edit_profile' %}" class="btn btn-outline">✏️ Edit Profile</a>
+        {% else %}
+          <button id="follow-btn"
+                  class="btn {% if is_following %}btn-outline{% else %}btn-primary{% endif %}"
+                  data-username="{{ profile_user.username }}"
+                  data-url="{% url 'follow' username=profile_user.username %}"
+                  data-following="{{ is_following|yesno:'true,false' }}">
+            {% if is_following %}✓ Following{% else %}+ Follow{% endif %}
+          </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Posts Grid ── -->
+  <div class="posts-section">
+    <h3 class="section-title">Posts</h3>
+
+    {% if posts %}
+      {% for post in posts %}
+      <article class="post-card">
+        <div class="post-header">
+          <a href="{% url 'profile' username=post.author.username %}" class="post-author-link">
+            {% if post.author.profile.avatar %}
+              <img src="{{ post.author.profile.avatar.url }}" class="user-avatar-sm" alt="avatar" />
+            {% else %}
+              <div class="avatar-placeholder">{{ post.author.username|first|upper }}</div>
+            {% endif %}
+            <div>
+              <div class="author-name">{{ post.author.get_full_name|default:post.author.username }}</div>
+              <div class="post-time">{{ post.created_at|timesince }} ago</div>
+            </div>
+          </a>
+
+          {% if post.author == user %}
+          <form method="post" action="{% url 'delete_post' post_id=post.id %}"
+                onsubmit="return confirm('Delete this post?')">
+            {% csrf_token %}
+            <button type="submit" class="btn-icon-danger">🗑</button>
+          </form>
+          {% endif %}
+        </div>
+
+        <div class="post-content">{{ post.content }}</div>
+
+        {% if post.image %}
+          <img src="{{ post.image.url }}" class="post-image" alt="post image" />
+        {% endif %}
+
+        <div class="post-actions">
+          <button class="action-btn like-btn {% if post.id in liked_post_ids %}liked{% endif %}"
+                  data-post-id="{{ post.id }}"
+                  data-url="{% url 'like_post' post_id=post.id %}">
+            <span class="like-icon">{% if post.id in liked_post_ids %}❤️{% else %}🤍{% endif %}</span>
+            <span class="like-count">{{ post.get_likes_count }}</span>
+          </button>
+          <a href="{% url 'post_detail' post_id=post.id %}" class="action-btn">
+            💬 <span>{{ post.get_comments_count }}</span>
+          </a>
+        </div>
+      </article>
+      {% endfor %}
+
+    {% else %}
+      <div class="empty-feed">
+        <div class="empty-icon">📝</div>
+        <p>No posts yet.</p>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Follow / Unfollow AJAX
+const followBtn = document.getElementById('follow-btn');
+if (followBtn) {
+  followBtn.addEventListener('click', function() {
+    const url  = this.dataset.url;
+    let isFollowing = this.dataset.following === 'true';
+
+    fetch(url, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    })
+    .then(res => res.json())
+    .then(data => {
+      const countEl = document.getElementById('followers-count');
+      countEl.textContent = data.followers_count;
+
+      if (data.following) {
+        this.textContent = '✓ Following';
+        this.classList.remove('btn-primary');
+        this.classList.add('btn-outline');
+        this.dataset.following = 'true';
+      } else {
+        this.textContent = '+ Follow';
+        this.classList.remove('btn-outline');
+        this.classList.add('btn-primary');
+        this.dataset.following = 'false';
+      }
+    });
+  });
+}
+
+// Like button AJAX
+document.querySelectorAll('.like-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const url   = this.dataset.url;
+    const icon  = this.querySelector('.like-icon');
+    const count = this.querySelector('.like-count');
+
+    fetch(url, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    })
+    .then(res => res.json())
+    .then(data => {
+      count.textContent = data.likes_count;
+      if (data.liked) {
+        this.classList.add('liked');
+        icon.textContent = '❤️';
+      } else {
+        this.classList.remove('liked');
+        icon.textContent = '🤍';
+      }
+    });
+  });
+});
+</script>
+{% endblock %}
