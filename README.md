@@ -50,7 +50,7 @@ text---
    cd CodeAlpha_Social_media_Platform
 
 Create and activate virtual environmentBashpython -m venv venv
-venv\Scripts\activate        # On Windows
+venv\Scripts\activate        # On Windows OS
 Install dependenciesBashpip install django
 Apply database migrationsBashpython manage.py makemigrations
 python manage.py migrate
